@@ -10,7 +10,6 @@ type Space struct {
 }
 
 type Paragraph struct {
-	Space Space       `xml:"s"`
 	Data  string      `xml:",chardata"`
 	Spans []Paragraph `xml:"span"`
 }
@@ -18,6 +17,7 @@ type Paragraph struct {
 type DocumentText struct {
 	XMLName    xml.Name    `xml:"text"`
 	Paragraphs []Paragraph `xml:"p"`
+	DocStrings []string    `xml:"h"`
 }
 
 type DocumentBody struct {
@@ -46,14 +46,6 @@ func Parse(file []byte) (*DocumentContent, error) {
 func (content *DocumentContent) String() string {
 	str := ""
 	for _, p := range content.Body.Text.Paragraphs {
-		//for _, s := range p.Spaces {
-		for i := 0; i <= p.Space.Number; i += 1 {
-			str += " "
-		}
-		if p.Space.Number == 0 {
-			str += " "
-		}
-		//}
 		str += p.Data
 
 		for _, s := range p.Spans {
