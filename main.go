@@ -31,7 +31,7 @@ func main() {
 
 	content, err := wordide.Parse(fileContent)
 	if err != nil {
-		fmt.Println("Cannot parse the file")
+		fmt.Printf("Cannot parse the file, reported error: %v\n", err)
 	}
 
 	fmt.Println(content.String())

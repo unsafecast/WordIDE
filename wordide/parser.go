@@ -3,21 +3,52 @@ package wordide
 import (
 	"encoding/xml"
 	"fmt"
+	"strconv"
 )
 
 type Space struct {
 	Number int `xml:"c,attr,omitempty"`
 }
 
+type Element struct {
+	Data string
+}
+
 type Paragraph struct {
-	Data  string      `xml:",chardata"`
-	Spans []Paragraph `xml:"span"`
+	Data []Element `xml:",any"`
+}
+
+func (e *Element) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	switch start.Name.Local {
+	case "s":
+		for _, x := range start.Attr {
+			if x.Name.Local == "c" {
+				x, _ := strconv.Atoi(x.Value)
+				for i := 0; i < x; i += 1 {
+					e.Data += " "
+				}
+			}
+		}
+		d.Skip()
+
+	case "span":
+		d.Skip() // TODO: This is where I left off
+		x, _ := d.Token()
+		cd := x.(xml.CharData)
+		e.Data += string(cd)
+		d.Skip()
+
+	default:
+		e.Data += start.Name.Local
+		d.Skip()
+	}
+
+	return nil
 }
 
 type DocumentText struct {
 	XMLName    xml.Name    `xml:"text"`
 	Paragraphs []Paragraph `xml:"p"`
-	DocStrings []string    `xml:"h"`
 }
 
 type DocumentBody struct {
@@ -46,10 +77,8 @@ func Parse(file []byte) (*DocumentContent, error) {
 func (content *DocumentContent) String() string {
 	str := ""
 	for _, p := range content.Body.Text.Paragraphs {
-		str += p.Data
-
-		for _, s := range p.Spans {
-			str += s.Data
+		for _, x := range p.Data {
+			str += x.Data
 		}
 		str += "\n"
 	}
