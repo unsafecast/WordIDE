@@ -2,58 +2,98 @@ package wordide
 
 import (
 	"encoding/xml"
-	"fmt"
 	"strconv"
 )
 
-type Space struct {
-	Number int `xml:"c,attr,omitempty"`
+func GetIntAttr(attrs *[]xml.Attr, name string) int {
+	for _, attr := range *attrs {
+		if attr.Name.Local == name {
+			i, _ := strconv.Atoi(attr.Value)
+			return i
+		}
+	}
+
+	return -1 // FIXME: We need to return an error!
 }
 
-type Element struct {
-	Data string
+type DocumentText struct {
+	Data      string
+	isParsing bool
 }
 
-type Paragraph struct {
-	Data []Element `xml:",any"`
-}
+func (dt *DocumentText) ParseElement(d *xml.Decoder) xml.Token {
+	token, _ := d.Token()
+	switch tt := token.(type) {
+	case xml.StartElement:
+		switch tt.Name.Local {
+		case "p":
+			for {
+				switch tt := dt.ParseElement(d).(type) {
+				case xml.EndElement:
+					if tt.Name.Local == "p" {
+						dt.Data += "\n"
+						return tt
+					}
+				}
+			}
 
-func (e *Element) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	switch start.Name.Local {
-	case "s":
-		for _, x := range start.Attr {
-			if x.Name.Local == "c" {
-				x, _ := strconv.Atoi(x.Value)
-				for i := 0; i < x; i += 1 {
-					e.Data += " "
+		case "s":
+			for i := 0; i < GetIntAttr(&tt.Attr, "c"); i += 1 {
+				dt.Data += " "
+			}
+
+		case "tab":
+			dt.Data += "\t"
+
+		case "span":
+			for {
+				switch tt := dt.ParseElement(d).(type) {
+				case xml.EndElement:
+					if tt.Name.Local == "span" {
+						return tt
+					}
 				}
 			}
 		}
-		d.Skip()
 
-	case "span":
-		d.Skip() // TODO: This is where I left off
-		x, _ := d.Token()
-		cd := x.(xml.CharData)
-		e.Data += string(cd)
-		d.Skip()
+	case xml.EndElement:
+		switch tt.Name.Local {
+		case "text":
+			dt.isParsing = false
+		}
 
-	default:
-		e.Data += start.Name.Local
-		d.Skip()
+		return tt
+
+	case xml.CharData:
+		dt.Data += string(tt)
+	}
+
+	return token
+}
+
+func (dt *DocumentText) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	inSequence := true
+	for inSequence { // HACK: Very dirty hack to skip the sequence decls, which we don't currently care about
+		token, _ := d.Token()
+		switch tt := token.(type) {
+		case xml.EndElement:
+			if tt.Name.Local != "sequence-decl" {
+				inSequence = false
+			}
+		}
+	}
+
+	dt.isParsing = true
+	for dt.isParsing {
+		dt.ParseElement(d)
 	}
 
 	return nil
 }
 
-type DocumentText struct {
-	XMLName    xml.Name    `xml:"text"`
-	Paragraphs []Paragraph `xml:"p"`
-}
-
 type DocumentBody struct {
-	XMLName xml.Name `xml:"body"`
-	Text    DocumentText
+	XMLName xml.Name     `xml:"body"`
+	Text    DocumentText `xml:"text"`
 }
 
 type DocumentContent struct {
@@ -69,19 +109,9 @@ func Parse(file []byte) (*DocumentContent, error) {
 		return nil, err
 	}
 
-	fmt.Printf("\n%#v\n", content)
-
 	return content, nil
 }
 
 func (content *DocumentContent) String() string {
-	str := ""
-	for _, p := range content.Body.Text.Paragraphs {
-		for _, x := range p.Data {
-			str += x.Data
-		}
-		str += "\n"
-	}
-
-	return str
+	return content.Body.Text.Data
 }

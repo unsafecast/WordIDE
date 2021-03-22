@@ -1,10 +1,14 @@
 
 GO=go
+BIN=wide
 
-.PHONY: build clean
+.PHONY: build clean install
 
 build:
-	go build -o wide
+	$(GO) build -o $(BIN)
 
 clean:
 	go clean
+
+install:
+	cp $(BIN) /usr/bin

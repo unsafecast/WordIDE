@@ -3,36 +3,62 @@ package main
 import (
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/FiftyLinesOfCode/wordide/wordide"
 )
 
+const PROG_NAME string = "wide"
+
+func printUsage() {
+	println("USAGE: wide <command> <filename>.odt")
+	println("Available commands:")
+	println("\tcompile - Outputs plain text in stdout")
+	println("\thelp - displays this page")
+}
+
 func main() {
-	ctx, err := wordide.OpenContext("test.odt")
-	if err != nil {
-		fmt.Println("Could not open context")
-		return
-	}
-	defer ctx.Close()
-
-	file, err := ctx.GetFile("content.xml")
-	if err != nil {
-		fmt.Println("Can't find content.xml")
+	args := os.Args
+	if len(args) <= 2 {
+		printUsage()
 		return
 	}
 
-	reader, _ := file.Open()
-	fileContent, err := io.ReadAll(reader)
-	if err != nil {
-		fmt.Println("Failed to read from content.xml")
+	switch args[1] {
+	case "help":
+		printUsage()
+		return
+
+	case "compile":
+		ctx, err := wordide.OpenContext(args[2])
+		if err != nil {
+			println("Can't open a context. Are you sure the file specified exists?")
+			return
+		}
+		defer ctx.Close()
+
+		file, err := ctx.GetFile("content.xml")
+		if err != nil {
+			println("The specified file doesn't contain a content.xml. Are you sure it's a valid .odt file?")
+			return
+		}
+
+		reader, _ := file.Open()
+		fileContent, err := io.ReadAll(reader)
+		if err != nil {
+			println("Failed to read from content.xml")
+			return
+		}
+
+		generated, err := wordide.Parse(fileContent)
+		if err != nil {
+			println("Couldn't parse content.xml. Are you sure it's a valid .odt file?")
+			return
+		}
+		fmt.Println(generated)
+
+	default:
+		printUsage()
 		return
 	}
-	fmt.Printf("%s\n", fileContent)
-
-	content, err := wordide.Parse(fileContent)
-	if err != nil {
-		fmt.Printf("Cannot parse the file, reported error: %v\n", err)
-	}
-
-	fmt.Println(content.String())
 }
