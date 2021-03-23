@@ -17,8 +17,7 @@ func GetIntAttr(attrs *[]xml.Attr, name string) int {
 }
 
 type DocumentText struct {
-	Data      string
-	isParsing bool
+	Data string
 }
 
 func (dt *DocumentText) ParseElement(d *xml.Decoder) xml.Token {
@@ -54,14 +53,19 @@ func (dt *DocumentText) ParseElement(d *xml.Decoder) xml.Token {
 					}
 				}
 			}
+
+		default:
+			for {
+				switch x := dt.ParseElement(d).(type) {
+				case xml.EndElement:
+					if tt.Name.Local == x.Name.Local {
+						return x
+					}
+				}
+			}
 		}
 
 	case xml.EndElement:
-		switch tt.Name.Local {
-		case "text":
-			dt.isParsing = false
-		}
-
 		return tt
 
 	case xml.CharData:
@@ -72,23 +76,14 @@ func (dt *DocumentText) ParseElement(d *xml.Decoder) xml.Token {
 }
 
 func (dt *DocumentText) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
-	inSequence := true
-	for inSequence { // HACK: Very dirty hack to skip the sequence decls, which we don't currently care about
-		token, _ := d.Token()
-		switch tt := token.(type) {
+	for {
+		switch x := dt.ParseElement(d).(type) {
 		case xml.EndElement:
-			if tt.Name.Local != "sequence-decl" {
-				inSequence = false
+			if x.Name.Local == "text" {
+				return nil // Yes we need to return errors some time
 			}
 		}
 	}
-
-	dt.isParsing = true
-	for dt.isParsing {
-		dt.ParseElement(d)
-	}
-
-	return nil
 }
 
 type DocumentBody struct {

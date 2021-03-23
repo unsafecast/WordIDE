@@ -8,7 +8,11 @@ import (
 	"github.com/FiftyLinesOfCode/wordide/wordide"
 )
 
-const PROG_NAME string = "wide"
+const (
+	PROG_NAME          string = "wide"
+	PROG_VERSION_MAJOR int    = 1
+	PROG_VERSION_MINOR int    = 0
+)
 
 func printUsage() {
 	println("USAGE: wide <command> <filename>.odt")
